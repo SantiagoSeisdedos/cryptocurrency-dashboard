@@ -1,65 +1,79 @@
-import Image from "next/image";
+import Link from "next/link";
+import ErrorMessage from "@/components/ErrorMessage";
+import DashboardView, {
+  type CoinWithMeta,
+} from "@/components/dashboard/DashboardView";
+import { fetchCoinMarketOverview } from "@/lib/coingecko";
+import { getCoinMeta } from "@/lib/coins";
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+export default async function HomePage() {
+  let coins: CoinWithMeta[] = [];
+  let error: Error | null = null;
+
+  try {
+    // Artificial delay for testing LoadingSpinner
+    // await new Promise((resolve) => setTimeout(resolve, 500));
+    const overview = await fetchCoinMarketOverview();
+    coins = overview
+      .map((coin) => {
+        const meta = getCoinMeta(coin.id);
+        if (!meta) return null;
+        return { ...coin, meta } as CoinWithMeta;
+      })
+      .filter(Boolean) as CoinWithMeta[];
+  } catch (err) {
+    error = err as Error;
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-slate-950">
+        <div className="mx-auto flex max-w-5xl flex-1 flex-col gap-8 px-4 py-16">
+          <ErrorMessage message={error.message} />
         </div>
       </main>
-    </div>
+    );
+  }
+
+  if (coins.length === 0) {
+    return (
+      <main className="min-h-screen bg-slate-950">
+        <div className="mx-auto flex max-w-5xl flex-1 flex-col items-center gap-6 px-4 py-16 text-center">
+          <ErrorMessage message="No se encontraron cotizaciones disponibles en este momento." />
+          <p className="max-w-md text-sm text-slate-300">
+            Puede tratarse de un problema temporal con la API de CoinGecko. Intenta nuevamente
+            en unos segundos.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition-colors hover:text-cyan-100"
+          >
+            Reintentar
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const bestPerformer = coins.reduce<CoinWithMeta | null>((best, curr) => {
+    if (!best || curr.change24h > best.change24h) {
+      return curr;
+    }
+    return best;
+  }, coins[0] ?? null);
+
+  const worstPerformer = coins.reduce<CoinWithMeta | null>((worst, curr) => {
+    if (!worst || curr.change24h < worst.change24h) {
+      return curr;
+    }
+    return worst;
+  }, coins[0] ?? null);
+
+  return (
+    <DashboardView
+      coins={coins}
+      bestPerformer={bestPerformer}
+      worstPerformer={worstPerformer}
+    />
   );
 }
