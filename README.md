@@ -43,6 +43,7 @@ npm start
 
 ### Próximos pasos sugeridos
 
+- Profundiza en el streaming SSE en `docs/streaming.md`.
 - Añadir gráficos históricos usando la API de market charts.
 - Implementar tests de componentes con Vitest/Testing Library.
 - Permitir seleccionar la moneda fíat para visualizar precios en distintas divisas.

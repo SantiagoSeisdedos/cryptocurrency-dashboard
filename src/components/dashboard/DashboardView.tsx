@@ -1,31 +1,169 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowDownRight, ArrowUpRight, LineChart, Sparkle } from "lucide-react";
-import type { CoinMeta } from "@/lib/coins";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  LineChart,
+  Radio,
+  Sparkle,
+} from "lucide-react";
+import { getCoinMeta, type CoinMeta } from "@/lib/coins";
 import type { CoinOverview } from "@/lib/coingecko";
+import EmptyPerformer from "./EmptyPerformer";
 
 export type CoinWithMeta = CoinOverview & { meta: CoinMeta };
 
+type ConnectionStatus = "connected" | "connecting" | "error";
+
 interface DashboardViewProps {
-  coins: CoinWithMeta[];
-  bestPerformer: CoinWithMeta | null;
-  worstPerformer: CoinWithMeta | null;
+  initialCoins: CoinWithMeta[];
+  initialTimestamp: string | null;
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 4,
 });
 
+const timeFormatter = new Intl.DateTimeFormat("es-ES", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+const LIVE_ENDPOINT = "/api/live-prices";
+
 export default function DashboardView({
-  coins,
-  bestPerformer,
-  worstPerformer,
+  initialCoins,
+  initialTimestamp,
 }: DashboardViewProps) {
+  const [liveCoins, setLiveCoins] = useState<CoinWithMeta[] | null>(null);
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("connecting");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(
+    initialTimestamp ? new Date(initialTimestamp) : null
+  );
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [streamSession, setStreamSession] = useState(0);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const closeStream = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const source = new EventSource(`${LIVE_ENDPOINT}?session=${streamSession}`);
+    eventSourceRef.current = source;
+
+    source.onopen = () => {
+      setConnectionStatus("connected");
+    };
+
+    source.onmessage = (event) => {
+      if (!event.data) {
+        return;
+      }
+
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload?.error) {
+          setConnectionStatus("error");
+          setLastError(
+            payload.message ?? "No fue posible actualizar los precios en vivo."
+          );
+          return;
+        }
+
+        if (payload?.coins) {
+          const merged = (payload.coins as CoinOverview[])
+            .map((coin) => {
+              const meta = getCoinMeta(coin.id);
+              if (!meta) return null;
+              return { ...coin, meta };
+            })
+            .filter(Boolean) as CoinWithMeta[];
+
+          if (merged.length > 0) {
+            setLiveCoins(merged);
+            setLastUpdated(
+              payload.updatedAt ? new Date(payload.updatedAt) : new Date()
+            );
+            setConnectionStatus("connected");
+            setLastError(null);
+          }
+        }
+      } catch {
+        setConnectionStatus("error");
+        setLastError("No se pudo interpretar la actualización en vivo.");
+      }
+    };
+
+    source.onerror = () => {
+      setConnectionStatus("error");
+    };
+
+    return () => {
+      source.close();
+      eventSourceRef.current = null;
+    };
+  }, [streamSession]);
+
+  const handleRestartStream = () => {
+    setLiveCoins(null);
+    setLastError(null);
+    setConnectionStatus("connecting");
+    closeStream();
+    setLastUpdated(null);
+    setStreamSession((prev) => prev + 1);
+  };
+
+  const coins = liveCoins ?? initialCoins;
+
+  const bestPerformer = useMemo(() => {
+    return coins.reduce<CoinWithMeta | null>((best, curr) => {
+      if (!best || curr.change24h > best.change24h) {
+        return curr;
+      }
+      return best;
+    }, coins[0] ?? null);
+  }, [coins]);
+
+  const worstPerformer = useMemo(() => {
+    return coins.reduce<CoinWithMeta | null>((worst, curr) => {
+      if (!worst || curr.change24h < worst.change24h) {
+        return curr;
+      }
+      return worst;
+    }, coins[0] ?? null);
+  }, [coins]);
+
+  const statusConfig = useMemo(() => {
+    switch (connectionStatus) {
+      case "connected":
+        return { label: "Conectado", tone: "text-emerald-300" };
+      case "connecting":
+        return { label: "Conectando...", tone: "text-slate-300" };
+      case "error":
+        return { label: "Error de streaming", tone: "text-rose-300" };
+      default:
+        return { label: "Desconocido", tone: "text-slate-400" };
+    }
+  }, [connectionStatus]);
+
+  const lastUpdatedLabel = lastUpdated
+    ? timeFormatter.format(lastUpdated)
+    : "—";
+
+  const canRetry = connectionStatus === "error";
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-black" />
@@ -52,42 +190,84 @@ export default function DashboardView({
             </p>
           </div>
 
-          <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-white/10 bg-slate-900/60 px-5 py-4">
-            <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-400">
-              <span>Mejor desempeño</span>
-              <span>Peor desempeño</span>
+          <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-white/10 bg-slate-900/60 px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  <Radio className="h-4 w-4 text-cyan-300" />
+                  Estado del streaming
+                </p>
+                <p
+                  className={`mt-2 text-sm font-semibold ${statusConfig.tone}`}
+                >
+                  {statusConfig.label}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Última actualización:{" "}
+                  <span className="font-medium text-slate-200">
+                    {lastUpdatedLabel}
+                  </span>
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                {canRetry && (
+                  <button
+                    type="button"
+                    onClick={handleRestartStream}
+                    className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:border-emerald-400 hover:text-emerald-100"
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Reintentar
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              {bestPerformer ? (
-                <div className="flex flex-1 items-center gap-3 rounded-xl bg-emerald-500/15 px-4 py-3">
-                  <ArrowUpRight className="h-5 w-5 text-emerald-300" />
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {bestPerformer.meta.name}
-                    </p>
-                    <p className="text-xs font-medium text-emerald-300">
-                      {bestPerformer.change24h.toFixed(2)}%
-                    </p>
+
+            {lastError && (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                {lastError}
+              </div>
+            )}
+
+            <div className="h-px w-full bg-white/5" />
+
+            <div>
+              <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-400">
+                <span>Mejor desempeño</span>
+                <span>Peor desempeño</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-4">
+                {bestPerformer ? (
+                  <div className="flex flex-1 items-center gap-3 rounded-xl bg-emerald-500/15 px-4 py-3">
+                    <ArrowUpRight className="h-5 w-5 text-emerald-300" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {bestPerformer.meta.name}
+                      </p>
+                      <p className="text-xs font-medium text-emerald-300">
+                        {bestPerformer.change24h.toFixed(2)}%
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <EmptyPerformer placeholder="N/A" positive />
-              )}
-              {worstPerformer ? (
-                <div className="flex flex-1 items-center gap-3 rounded-xl bg-rose-500/15 px-4 py-3">
-                  <ArrowDownRight className="h-5 w-5 text-rose-300" />
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {worstPerformer.meta.name}
-                    </p>
-                    <p className="text-xs font-medium text-rose-300">
-                      {worstPerformer.change24h.toFixed(2)}%
-                    </p>
+                ) : (
+                  <EmptyPerformer placeholder="N/A" positive />
+                )}
+                {worstPerformer ? (
+                  <div className="flex flex-1 items-center gap-3 rounded-xl bg-rose-500/15 px-4 py-3">
+                    <ArrowDownRight className="h-5 w-5 text-rose-300" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {worstPerformer.meta.name}
+                      </p>
+                      <p className="text-xs font-medium text-rose-300">
+                        {worstPerformer.change24h.toFixed(2)}%
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <EmptyPerformer placeholder="N/A" />
-              )}
+                ) : (
+                  <EmptyPerformer placeholder="N/A" />
+                )}
+              </div>
             </div>
           </div>
         </motion.header>
@@ -174,31 +354,3 @@ export default function DashboardView({
     </main>
   );
 }
-
-function EmptyPerformer({
-  placeholder,
-  positive = false,
-}: {
-  placeholder: string;
-  positive?: boolean;
-}) {
-  return (
-    <div
-      className={`flex flex-1 items-center gap-3 rounded-xl px-4 py-3 ${
-        positive ? "bg-emerald-500/5" : "bg-rose-500/5"
-      }`}
-    >
-      {positive ? (
-        <ArrowUpRight className="h-5 w-5 text-emerald-200" />
-      ) : (
-        <ArrowDownRight className="h-5 w-5 text-rose-200" />
-      )}
-      <div>
-        <p className="text-sm font-semibold text-white">{placeholder}</p>
-        <p className="text-xs font-medium text-slate-400">Sin datos</p>
-      </div>
-    </div>
-  );
-}
-
-

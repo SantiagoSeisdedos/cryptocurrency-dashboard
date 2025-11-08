@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
 import { ArrowDownRight, ArrowUpRight, ArrowLeft, Clock } from "lucide-react";
 import ErrorMessage from "@/components/ErrorMessage";
 import { fetchCoinDetail } from "@/lib/coingecko";
@@ -14,24 +13,6 @@ type PageParams = {
 type PageProps = {
   params: Promise<PageParams>;
 };
-
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  const meta = getCoinMeta(id);
-
-  if (!meta) {
-    return {
-      title: "Criptomoneda no encontrada | Crypto Dashboard",
-    };
-  }
-
-  return {
-    title: `${meta.name} | Crypto Dashboard`,
-    description: `Consulta el precio actual y el rango de 24 horas de ${meta.name}.`,
-  };
-}
 
 export default async function CoinDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -61,7 +42,12 @@ export default async function CoinDetailPage({ params }: PageProps) {
             <ArrowLeft className="h-4 w-4" />
             Volver
           </Link>
-          <ErrorMessage message={error?.message ?? "Error al obtener el detalle de la criptomoneda."} />
+          <ErrorMessage
+            message={
+              error?.message ??
+              "Error al obtener el detalle de la criptomoneda."
+            }
+          />
         </div>
       </main>
     );
@@ -122,6 +108,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
                 {detail.price.toLocaleString("en-US", {
                   style: "currency",
                   currency: "USD",
+                  maximumFractionDigits: 4,
                 })}
               </p>
               <div
@@ -154,6 +141,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
               {detail.high24h.toLocaleString("en-US", {
                 style: "currency",
                 currency: "USD",
+                maximumFractionDigits: 4,
               })}
             </p>
             <p className="mt-2 text-sm text-slate-400">
@@ -169,6 +157,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
               {detail.low24h.toLocaleString("en-US", {
                 style: "currency",
                 currency: "USD",
+                maximumFractionDigits: 4,
               })}
             </p>
             <p className="mt-2 text-sm text-slate-400">

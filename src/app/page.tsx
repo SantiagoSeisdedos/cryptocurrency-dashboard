@@ -1,19 +1,20 @@
 import Link from "next/link";
 import ErrorMessage from "@/components/ErrorMessage";
-import DashboardView, {
-  type CoinWithMeta,
-} from "@/components/dashboard/DashboardView";
+import DashboardView from "@/components/dashboard/DashboardView";
+import type { CoinWithMeta } from "@/components/dashboard/DashboardView";
 import { fetchCoinMarketOverview } from "@/lib/coingecko";
 import { getCoinMeta } from "@/lib/coins";
 
 export default async function HomePage() {
   let coins: CoinWithMeta[] = [];
+  let fetchedAt: string | null = null;
   let error: Error | null = null;
 
   try {
     // Artificial delay for testing LoadingSpinner
     // await new Promise((resolve) => setTimeout(resolve, 500));
     const overview = await fetchCoinMarketOverview();
+    fetchedAt = new Date().toISOString();
     coins = overview
       .map((coin) => {
         const meta = getCoinMeta(coin.id);
@@ -55,25 +56,7 @@ export default async function HomePage() {
     );
   }
 
-  const bestPerformer = coins.reduce<CoinWithMeta | null>((best, curr) => {
-    if (!best || curr.change24h > best.change24h) {
-      return curr;
-    }
-    return best;
-  }, coins[0] ?? null);
-
-  const worstPerformer = coins.reduce<CoinWithMeta | null>((worst, curr) => {
-    if (!worst || curr.change24h < worst.change24h) {
-      return curr;
-    }
-    return worst;
-  }, coins[0] ?? null);
-
   return (
-    <DashboardView
-      coins={coins}
-      bestPerformer={bestPerformer}
-      worstPerformer={worstPerformer}
-    />
+    <DashboardView initialCoins={coins} initialTimestamp={fetchedAt} />
   );
 }
