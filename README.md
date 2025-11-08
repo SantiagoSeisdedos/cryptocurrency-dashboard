@@ -35,6 +35,7 @@ npm start
 - **CoinGecko API**: se usa el endpoint `simple/price` para el listado y `coins/{id}` para el detalle. Ambos se revalidan cada 60 s balanceando frescura y cuota de peticiones.
 - **Gestión de datos**: las monedas soportadas y sus metadatos (nombre, símbolo, gradientes, imagen) se centralizan en `src/lib/coins.ts` para evitar duplicación.
 - **UI/UX**: Tailwind CSS 4 aporta utilidades atómicas; se añaden degradados, tarjetas con glassmorphism y feedback visual consistente en carga/errores.
+- **Mini gráficos**: las tarjetas muestran sparklines generadas con datos de `market_chart` (24 h) preprocesados en el servidor y enriquecidos en streaming SSE.
 - **Accesibilidad**: contrastes AA, texto descriptivo y navegación basada en enlaces semánticos.
 
 ### Scripts útiles
