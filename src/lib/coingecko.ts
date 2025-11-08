@@ -31,27 +31,48 @@ export interface CoinDetail {
   lastUpdated: string | null;
 }
 
-export async function fetchCoinMarketOverview(): Promise<CoinOverview[]> {
+interface FetchOptions {
+  cache?: RequestCache;
+  revalidate?: number;
+}
+
+export async function fetchCoinMarketOverview(
+  options?: FetchOptions
+): Promise<CoinOverview[]> {
   const ids = SUPPORTED_COINS.map((coin) => coin.id).join(",");
+  
+  // maybe we can add a type to set all the available params to use in the future
   const params = new URLSearchParams({
     ids,
     vs_currencies: "usd",
     include_24hr_change: "true",
   });
 
-  const response = await fetch(
-    `${COINGECKO_API}/simple/price?${params.toString()}`,
-    {
-      next: { revalidate: 60 },
-    }
-  );
+  const fetchConfig: RequestInit & { next?: { revalidate: number } } = {};
+
+  if (options?.cache) {
+    fetchConfig.cache = options.cache;
+  }
+
+  if (options?.cache !== "no-store") {
+    fetchConfig.next = { revalidate: options?.revalidate ?? 60 };
+  }
+  let response: Response;
+  try {
+    response = await fetch(
+      `${COINGECKO_API}/simple/price?${params.toString()}`,
+      fetchConfig
+    );
+  } catch (error) {
+    console.error("COINGECKO_API /simple/price 02 error: ", error);
+    throw new Error("No fue posible obtener los precios actuales.");
+  }
 
   if (!response.ok) {
     throw new Error("No fue posible obtener los precios actuales.");
   }
 
   const result: SimplePriceResponse = await response.json();
-
   return SUPPORTED_COINS.flatMap((coin) => {
     const entry = result[coin.id];
     if (!entry || entry.usd === undefined) {
@@ -69,17 +90,26 @@ export async function fetchCoinMarketOverview(): Promise<CoinOverview[]> {
 }
 
 export async function fetchCoinDetail(
-  id: string
+  id: string,
+  options?: FetchOptions
 ): Promise<CoinDetail | undefined> {
   if (!COIN_ID_SET.has(id as SupportedCoinId)) {
     return undefined;
   }
 
+  const fetchConfig: RequestInit & { next?: { revalidate: number } } = {};
+
+  if (options?.cache) {
+    fetchConfig.cache = options.cache;
+  }
+
+  if (options?.cache !== "no-store") {
+    fetchConfig.next = { revalidate: options?.revalidate ?? 60 };
+  }
+
   const response = await fetch(
     `${COINGECKO_API}/coins/${id}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`,
-    {
-      next: { revalidate: 60 },
-    }
+    fetchConfig
   );
 
   if (!response.ok) {
@@ -111,4 +141,3 @@ export async function fetchCoinDetail(
     lastUpdated: data.last_updated ?? null,
   };
 }
-
