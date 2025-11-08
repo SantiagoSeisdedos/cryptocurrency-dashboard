@@ -14,6 +14,8 @@ import {
 import { getCoinMeta, type CoinMeta } from "@/lib/coins";
 import type { CoinOverview } from "@/lib/coingecko";
 import EmptyPerformer from "./EmptyPerformer";
+import Sparkline from "./Sparkline";
+import { currencyFormatter } from "@/lib/format";
 
 export type CoinWithMeta = CoinOverview & { meta: CoinMeta };
 
@@ -21,14 +23,9 @@ type ConnectionStatus = "connected" | "connecting" | "error";
 
 interface DashboardViewProps {
   initialCoins: CoinWithMeta[];
+  initialHistory: Record<string, number[]>;
   initialTimestamp: string | null;
 }
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 4,
-});
 
 const timeFormatter = new Intl.DateTimeFormat("es-ES", {
   hour: "2-digit",
@@ -37,9 +34,11 @@ const timeFormatter = new Intl.DateTimeFormat("es-ES", {
 });
 
 const LIVE_ENDPOINT = "/api/live-prices";
+const HISTORY_LIMIT = 7;
 
 export default function DashboardView({
   initialCoins,
+  initialHistory,
   initialTimestamp,
 }: DashboardViewProps) {
   const [liveCoins, setLiveCoins] = useState<CoinWithMeta[] | null>(null);
@@ -50,6 +49,9 @@ export default function DashboardView({
   );
   const [lastError, setLastError] = useState<string | null>(null);
   const [streamSession, setStreamSession] = useState(0);
+  const [history, setHistory] = useState<Record<string, number[]>>(
+    initialHistory
+  );
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const closeStream = useCallback(() => {
@@ -98,6 +100,19 @@ export default function DashboardView({
             );
             setConnectionStatus("connected");
             setLastError(null);
+            setHistory((prev) => {
+              const next = { ...prev };
+              merged.forEach((coin) => {
+                const existing =
+                  next[coin.id] ?? initialHistory[coin.id] ?? [];
+                const updated = [...existing, coin.price];
+                if (updated.length > HISTORY_LIMIT) {
+                  updated.splice(0, updated.length - HISTORY_LIMIT);
+                }
+                next[coin.id] = updated;
+              });
+              return next;
+            });
           }
         }
       } catch {
@@ -114,7 +129,7 @@ export default function DashboardView({
       source.close();
       eventSourceRef.current = null;
     };
-  }, [streamSession]);
+  }, [streamSession, initialHistory]);
 
   const handleRestartStream = () => {
     setLiveCoins(null);
@@ -122,6 +137,7 @@ export default function DashboardView({
     setConnectionStatus("connecting");
     closeStream();
     setLastUpdated(null);
+    setHistory(initialHistory);
     setStreamSession((prev) => prev + 1);
   };
 
@@ -236,32 +252,48 @@ export default function DashboardView({
                 <span>Mejor desempeño</span>
                 <span>Peor desempeño</span>
               </div>
-              <div className="mt-3 flex items-center justify-between gap-4">
+              <div className="mt-3 flex flex-col gap-3">
                 {bestPerformer ? (
-                  <div className="flex flex-1 items-center gap-3 rounded-xl bg-emerald-500/15 px-4 py-3">
-                    <ArrowUpRight className="h-5 w-5 text-emerald-300" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {bestPerformer.meta.name}
-                      </p>
-                      <p className="text-xs font-medium text-emerald-300">
-                        {bestPerformer.change24h.toFixed(2)}%
-                      </p>
+                  <div className="flex items-center justify-between rounded-xl bg-emerald-500/15 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <ArrowUpRight className="h-5 w-5 text-emerald-300" />
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {bestPerformer.meta.name}
+                        </p>
+                        <p className="text-xs font-medium text-emerald-300">
+                          {bestPerformer.change24h.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="hidden h-12 w-32 sm:block">
+                      <Sparkline
+                        data={history[bestPerformer.id] ?? []}
+                        color="#34d399"
+                      />
                     </div>
                   </div>
                 ) : (
                   <EmptyPerformer placeholder="N/A" positive />
                 )}
                 {worstPerformer ? (
-                  <div className="flex flex-1 items-center gap-3 rounded-xl bg-rose-500/15 px-4 py-3">
-                    <ArrowDownRight className="h-5 w-5 text-rose-300" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {worstPerformer.meta.name}
-                      </p>
-                      <p className="text-xs font-medium text-rose-300">
-                        {worstPerformer.change24h.toFixed(2)}%
-                      </p>
+                  <div className="flex items-center justify-between rounded-xl bg-rose-500/15 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <ArrowDownRight className="h-5 w-5 text-rose-300" />
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {worstPerformer.meta.name}
+                        </p>
+                        <p className="text-xs font-medium text-rose-300">
+                          {worstPerformer.change24h.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="hidden h-12 w-32 sm:block">
+                      <Sparkline
+                        data={history[worstPerformer.id] ?? []}
+                        color="#f87171"
+                      />
                     </div>
                   </div>
                 ) : (
@@ -318,6 +350,11 @@ export default function DashboardView({
                     {currencyFormatter.format(coin.price)}
                   </p>
                 </div>
+
+                <Sparkline
+                  data={history[coin.id] ?? []}
+                  color={coin.change24h >= 0 ? "#34d399" : "#f87171"}
+                />
 
                 <div className="flex items-center justify-between">
                   <div

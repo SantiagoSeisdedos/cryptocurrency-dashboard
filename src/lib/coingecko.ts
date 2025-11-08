@@ -36,12 +36,17 @@ interface FetchOptions {
   revalidate?: number;
 }
 
+interface MarketChartOptions extends FetchOptions {
+  days?: number;
+  interval?: string;
+  points?: number;
+}
+
 export async function fetchCoinMarketOverview(
   options?: FetchOptions
 ): Promise<CoinOverview[]> {
   const ids = SUPPORTED_COINS.map((coin) => coin.id).join(",");
-  
-  // maybe we can add a type to set all the available params to use in the future
+
   const params = new URLSearchParams({
     ids,
     vs_currencies: "usd",
@@ -63,8 +68,8 @@ export async function fetchCoinMarketOverview(
       `${COINGECKO_API}/simple/price?${params.toString()}`,
       fetchConfig
     );
-  } catch (error) {
-    console.error("COINGECKO_API /simple/price 02 error: ", error);
+  } catch(error) {
+    console.error(error);
     throw new Error("No fue posible obtener los precios actuales.");
   }
 
@@ -140,4 +145,60 @@ export async function fetchCoinDetail(
     image: data.image?.large ?? null,
     lastUpdated: data.last_updated ?? null,
   };
+}
+
+export async function fetchCoinMarketHistory(
+  id: SupportedCoinId,
+  options?: MarketChartOptions
+): Promise<number[]> {
+  if (!COIN_ID_SET.has(id)) {
+    return [];
+  }
+
+  const params = new URLSearchParams({
+    vs_currency: "usd",
+    days: String(options?.days ?? 7),
+    interval: options?.interval ?? "daily",
+  });
+
+  const fetchConfig: RequestInit & { next?: { revalidate: number } } = {};
+
+  if (options?.cache) {
+    fetchConfig.cache = options.cache;
+  }
+
+  if (options?.cache !== "no-store") {
+    fetchConfig.next = { revalidate: options?.revalidate ?? 600 };
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${COINGECKO_API}/coins/${id}/market_chart?${params.toString()}`,
+      fetchConfig
+    );
+  } catch {
+    return [];
+  }
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = await response.json();
+  const prices = Array.isArray(data?.prices) ? data.prices : [];
+  const extracted = prices
+    .map((point: unknown) => {
+      if (!Array.isArray(point) || point.length < 2) return null;
+      const price = Number(point[1]);
+      return Number.isFinite(price) ? price : null;
+    })
+    .filter((value: number | null): value is number => value !== null);
+
+  const limit = options?.points ?? 7;
+  if (extracted.length > limit) {
+    return extracted.slice(-limit);
+  }
+
+  return extracted;
 }

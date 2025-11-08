@@ -2,12 +2,16 @@ import Link from "next/link";
 import ErrorMessage from "@/components/ErrorMessage";
 import DashboardView from "@/components/dashboard/DashboardView";
 import type { CoinWithMeta } from "@/components/dashboard/DashboardView";
-import { fetchCoinMarketOverview } from "@/lib/coingecko";
+import {
+  fetchCoinMarketHistory,
+  fetchCoinMarketOverview,
+} from "@/lib/coingecko";
 import { getCoinMeta } from "@/lib/coins";
 
 export default async function HomePage() {
   let coins: CoinWithMeta[] = [];
   let fetchedAt: string | null = null;
+  const history: Record<string, number[]> = {};
   let error: Error | null = null;
 
   try {
@@ -22,6 +26,17 @@ export default async function HomePage() {
         return { ...coin, meta } as CoinWithMeta;
       })
       .filter(Boolean) as CoinWithMeta[];
+
+    for (const coin of coins) {
+      const series = await fetchCoinMarketHistory(coin.id, {
+        points: 7,
+        days: 7,
+        interval: "daily",
+        cache: "default",
+        revalidate: 600,
+      });
+      history[coin.id] = series.length > 0 ? series : [coin.price];
+    }
   } catch (err) {
     error = err as Error;
   }
@@ -57,6 +72,10 @@ export default async function HomePage() {
   }
 
   return (
-    <DashboardView initialCoins={coins} initialTimestamp={fetchedAt} />
+    <DashboardView
+      initialCoins={coins}
+      initialTimestamp={fetchedAt}
+      initialHistory={history}
+    />
   );
 }

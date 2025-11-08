@@ -3,8 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, ArrowLeft, Clock } from "lucide-react";
 import ErrorMessage from "@/components/ErrorMessage";
-import { fetchCoinDetail } from "@/lib/coingecko";
+import {
+  fetchCoinDetail,
+  fetchCoinMarketHistory,
+} from "@/lib/coingecko";
 import { getCoinMeta } from "@/lib/coins";
+import Sparkline from "@/components/dashboard/Sparkline";
+import { currencyFormatter } from "@/lib/format";
 
 type PageParams = {
   id: string;
@@ -24,9 +29,17 @@ export default async function CoinDetailPage({ params }: PageProps) {
 
   let detail;
   let error: Error | null = null;
+  let history: number[] = [];
 
   try {
     detail = await fetchCoinDetail(id);
+    history = await fetchCoinMarketHistory(meta.id, {
+      days: 30,
+      points: 30,
+      interval: "daily",
+      cache: "default",
+      revalidate: 600,
+    });
   } catch (err) {
     error = err as Error;
   }
@@ -105,11 +118,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
                 Precio actual
               </p>
               <p className="text-3xl font-semibold text-white">
-                {detail.price.toLocaleString("en-US", {
-                  style: "currency",
-                  currency: "USD",
-                  maximumFractionDigits: 4,
-                })}
+                {currencyFormatter.format(detail.price)}
               </p>
               <div
                 className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
@@ -130,6 +139,21 @@ export default async function CoinDetailPage({ params }: PageProps) {
               </div>
             </div>
           </div>
+          {history.length > 1 && (
+            <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 backdrop-blur-xl">
+              <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
+                Evolución últimos 30 días
+              </h2>
+              <div className="mt-6 h-48 w-full">
+                <Sparkline
+                  data={history}
+                  color={detail.change24h >= 0 ? "#34d399" : "#f87171"}
+                  width={640}
+                  height={180}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -138,11 +162,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
               Máximo 24h
             </h2>
             <p className="mt-3 text-3xl font-semibold text-white">
-              {detail.high24h.toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-                maximumFractionDigits: 4,
-              })}
+              {currencyFormatter.format(detail.high24h)}
             </p>
             <p className="mt-2 text-sm text-slate-400">
               Valor más alto registrado en las últimas 24 horas.
@@ -154,11 +174,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
               Mínimo 24h
             </h2>
             <p className="mt-3 text-3xl font-semibold text-white">
-              {detail.low24h.toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-                maximumFractionDigits: 4,
-              })}
+              {currencyFormatter.format(detail.low24h)}
             </p>
             <p className="mt-2 text-sm text-slate-400">
               Valor más bajo registrado en las últimas 24 horas.
