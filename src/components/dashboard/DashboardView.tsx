@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowDownRight,
   ArrowUpRight,
   Filter,
-  LineChart,
   Loader2,
   Plus,
   Radio,
@@ -21,15 +19,10 @@ import { getCoinMeta, type CoinMeta } from "@/lib/coins";
 import type { CoinDetail, CoinOverview } from "@/lib/coingecko";
 import EmptyPerformer from "./EmptyPerformer";
 import Sparkline from "./Sparkline";
-import { currencyFormatter, timeFormatter } from "@/lib/format";
+import CoinCard from "./CoinCard";
+import { timeFormatter } from "@/lib/format";
 import { useWatchlist, type WatchlistEntry } from "@/hooks/useWatchlist";
-import {
-  HISTORY_TTL_MS,
-  MARKET_CACHE_KEY,
-  OVERVIEW_TTL_MS,
-  type CoinCacheEntry,
-  type CoinCacheMap,
-} from "@/lib/cache";
+import { useMarketCache } from "@/hooks/useMarketCache";
 
 type ConnectionStatus = "connected" | "connecting" | "error";
 type SortKey = "watchlist" | "name" | "price" | "change";
@@ -150,132 +143,15 @@ export default function DashboardView({
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
-  const cacheRef = useRef<CoinCacheMap>({});
-  const cacheLoadedRef = useRef(false);
-  const initialCacheSeedRef = useRef(false);
-
-  const persistCache = useCallback(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        MARKET_CACHE_KEY,
-        JSON.stringify(cacheRef.current)
-      );
-    } catch (error) {
-      console.warn("No fue posible persistir la caché de mercado.", error);
-    }
-  }, []);
-
-  const setCacheEntry = useCallback(
-    (id: string, update: Partial<CoinCacheEntry>, persist = true) => {
-      cacheRef.current[id] = {
-        ...cacheRef.current[id],
-        ...update,
-      };
-      if (persist) {
-        persistCache();
-      }
-    },
-    [persistCache]
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    try {
-      const raw = window.localStorage.getItem(MARKET_CACHE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as CoinCacheMap;
-        cacheRef.current = parsed;
-      }
-    } catch (error) {
-      console.warn("No fue posible leer la caché de mercado.", error);
-    } finally {
-      cacheLoadedRef.current = true;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!cacheLoadedRef.current || initialCacheSeedRef.current) {
-      return;
-    }
-    initialCacheSeedRef.current = true;
-    const now = Date.now();
-    const cacheUpdates: Array<() => void> = [];
-
-    initialCoins.forEach((coin) => {
-      cacheUpdates.push(() =>
-        setCacheEntry(
-          coin.id,
-          { overview: coin, overviewUpdatedAt: now },
-          false
-        )
-      );
+  const { cacheReady, pendingIds, setCacheEntry, persistCache } =
+    useMarketCache({
+      initialCoins,
+      initialHistory,
+      entries,
+      isWatchlistReady,
+      setCoinData,
+      setHistory,
     });
-
-    Object.entries(initialHistory).forEach(([id, series]) => {
-      cacheUpdates.push(() =>
-        setCacheEntry(
-          id,
-          { history: series, historyUpdatedAt: now },
-          false
-        )
-      );
-    });
-
-    cacheUpdates.forEach((apply) => apply());
-    if (cacheUpdates.length > 0) {
-      persistCache();
-    }
-  }, [initialCoins, initialHistory, setCacheEntry, persistCache]);
-
-  useEffect(() => {
-    if (!cacheLoadedRef.current || !isWatchlistReady) {
-      return;
-    }
-    const now = Date.now();
-    if (entries.length === 0) {
-      return;
-    }
-
-    setCoinData((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      entries.forEach((entry) => {
-        const cached = cacheRef.current[entry.id];
-        if (
-          cached?.overview &&
-          cached.overviewUpdatedAt &&
-          now - cached.overviewUpdatedAt <= OVERVIEW_TTL_MS &&
-          !next[entry.id]
-        ) {
-          next[entry.id] = cached.overview;
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-
-    setHistory((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      entries.forEach((entry) => {
-        const cached = cacheRef.current[entry.id];
-        if (
-          cached?.history &&
-          cached.history.length > 0 &&
-          cached.historyUpdatedAt &&
-          now - cached.historyUpdatedAt <= HISTORY_TTL_MS &&
-          (!next[entry.id] || next[entry.id].length === 0)
-        ) {
-          next[entry.id] = cached.history;
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [entries, isWatchlistReady]);
 
   const watchlistSignature = useMemo(
     () => entries.map((entry) => entry.id).join(","),
@@ -537,79 +413,13 @@ export default function DashboardView({
   }, [reset]);
 
   useEffect(() => {
-    if (!isWatchlistReady || !cacheLoadedRef.current) {
+    if (!cacheReady || !isWatchlistReady) {
       return;
     }
 
-    const now = Date.now();
-    const idsToFetch: string[] = [];
-    const seedCoinData: Record<string, CoinOverview> = {};
-    const seedHistory: Record<string, number[]> = {};
-
-    entries.forEach((entry) => {
-      const id = entry.id;
-      const cached = cacheRef.current[id];
-
-      const overviewFresh =
-        cached?.overview &&
-        cached.overviewUpdatedAt &&
-        now - cached.overviewUpdatedAt <= OVERVIEW_TTL_MS;
-
-      const historyFresh =
-        cached?.history &&
-        cached.history.length > 0 &&
-        cached.historyUpdatedAt &&
-        now - cached.historyUpdatedAt <= HISTORY_TTL_MS;
-
-      if (cached?.overview && !coinData[id]) {
-        seedCoinData[id] = cached.overview;
-      }
-
-      if (cached?.history && cached.history.length > 0 && (!history[id] || history[id].length === 0)) {
-        seedHistory[id] = cached.history;
-      }
-
-      const needsOverview = !overviewFresh;
-      const needsHistory =
-        !historyFresh ||
-        !cached?.history ||
-        cached.history.length === 0;
-
-      if (
-        (needsOverview || needsHistory) &&
-        !requestedIdsRef.current.has(id)
-      ) {
-        idsToFetch.push(id);
-      }
-    });
-
-    if (Object.keys(seedCoinData).length > 0) {
-      setCoinData((prev) => {
-        const next = { ...prev };
-        let changed = false;
-        Object.entries(seedCoinData).forEach(([id, overview]) => {
-          if (!next[id]) {
-            next[id] = overview;
-            changed = true;
-          }
-        });
-        return changed ? next : prev;
-      });
-    }
-
-    if (Object.keys(seedHistory).length > 0) {
-      setHistory((prev) => {
-        const next = { ...prev };
-        let changed = false;
-        Object.entries(seedHistory).forEach(([id, series]) => {
-          if (!next[id] || next[id].length === 0) {
-            next[id] = series;
-            changed = true;
-          }
-        });
-        return changed ? next : prev;
-      });
-    }
+    const idsToFetch = pendingIds
+      .filter((id) => entries.some((entry) => entry.id === id))
+      .filter((id) => !requestedIdsRef.current.has(id));
 
     if (idsToFetch.length === 0) {
       return;
@@ -743,10 +553,19 @@ export default function DashboardView({
               .json()
               .catch(() => null);
             if (!historyResponse.ok) {
-              const message =
-                (historyPayload as { message?: string })?.message ??
-                "Histórico no disponible.";
+              const fallbackPrice = overviewMap.get(id)?.price;
+              if (fallbackPrice !== undefined) {
+                const fallbackSeries = [fallbackPrice, fallbackPrice];
+                historyUpdates.push({ id, series: fallbackSeries });
+                setHistory((prev) => ({
+                  ...prev,
+                  [id]: fallbackSeries,
+                }));
+              }
               if (!cancelled) {
+                const message =
+                  (historyPayload as { message?: string })?.message ??
+                  "Histórico no disponible.";
                 setWatchlistError((prev) => prev ?? message);
               }
               continue;
@@ -775,7 +594,7 @@ export default function DashboardView({
               return raw;
             })();
 
-            if (!historyResponse.ok || preparedSeries.length === 0) {
+            if (preparedSeries.length === 0) {
               const fallbackPrice = overviewMap.get(id)?.price;
               if (fallbackPrice !== undefined) {
                 const fallbackSeries = [fallbackPrice, fallbackPrice];
@@ -784,12 +603,6 @@ export default function DashboardView({
                   ...prev,
                   [id]: fallbackSeries,
                 }));
-              }
-              if (!cancelled) {
-                const message =
-                  (historyPayload as { message?: string })?.message ??
-                  "Histórico no disponible.";
-                setWatchlistError((prev) => prev ?? message);
               }
               continue;
             }
@@ -849,6 +662,7 @@ export default function DashboardView({
           setWatchlistError(message);
         }
       } finally {
+        idsToFetch.forEach((id) => requestedIdsRef.current.delete(id));
         if (!cancelled) {
           setIsLoadingWatchlist(false);
         }
@@ -862,12 +676,12 @@ export default function DashboardView({
       controller.abort();
     };
   }, [
+    cacheReady,
     entries,
-    coinData,
-    history,
     isWatchlistReady,
-    setCacheEntry,
+    pendingIds,
     persistCache,
+    setCacheEntry,
   ]);
 
   useEffect(() => {
@@ -1337,119 +1151,23 @@ export default function DashboardView({
 
         {/* Coins list */}
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {filteredCoins.map((coin, index) => {
-            const change = coin.overview?.change24h ?? 0;
-            const price = coin.overview?.price;
-            const positive = change >= 0;
-            const historyData = coin.history;
-            return (
-              <motion.article
-                key={coin.id}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.06 }}
-                whileHover={{ y: -4 }}
-                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl backdrop-blur-xl"
-              >
-                <div
-                  className={`pointer-events-none absolute inset-x-0 top-0 h-24 opacity-40 blur-3xl transition-all duration-500 group-hover:opacity-60 group-hover:blur-2xl bg-gradient-to-r ${coin.gradient}`}
-                />
-                <div className="relative flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
-                      {coin.image ? (
-                        <Image
-                          src={coin.image}
-                          alt={coin.name}
-                          fill
-                          sizes="56px"
-                          className="object-contain p-2"
-                          priority={index < 2}
-                        />
-                      ) : (
-                        <span className="grid h-full w-full place-items-center text-lg font-semibold text-cyan-200">
-                          {coin.symbol.slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-white">
-                        {coin.name}
-                      </h2>
-                      <p className="text-sm uppercase tracking-wide text-slate-400">
-                        {coin.symbol}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!coin.entry.isDefault && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveToken(coin.id)}
-                        className="rounded-full border border-white/10 bg-white/5 p-2 text-slate-300 transition-colors hover:text-rose-300"
-                        aria-label={`Quitar ${coin.name}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                    <LineChart className="h-6 w-6 text-slate-500 transition-colors duration-300 group-hover:text-slate-200" />
-                  </div>
-                </div>
-
-                <div className="relative mt-6 flex flex-col gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Precio actual
-                    </p>
-                    <p className="text-3xl font-semibold text-white">
-                      {price !== undefined
-                        ? currencyFormatter.format(price)
-                        : "—"}
-                    </p>
-                  </div>
-
-                  <Sparkline
-                    data={historyData}
-                    color={positive ? "#34d399" : "#f87171"}
-                  />
-
-                  <div className="flex items-center justify-between">
-                    <div
-                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
-                        positive
-                          ? "bg-emerald-500/15 text-emerald-300"
-                          : "bg-rose-500/15 text-rose-300"
-                      }`}
-                    >
-                      {positive ? (
-                        <ArrowUpRight className="h-4 w-4" />
-                      ) : (
-                        <ArrowDownRight className="h-4 w-4" />
-                      )}
-                      <span>
-                        {positive ? "+" : ""}
-                        {change.toFixed(2)}% 24h
-                      </span>
-                    </div>
-
-                    {coin.supportsDetail ? (
-                      <Link
-                        href={`/coins/${coin.id}`}
-                        className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition-colors duration-300 hover:text-cyan-200"
-                      >
-                        Ver detalles
-                        <ArrowUpRight className="h-4 w-4" />
-                      </Link>
-                    ) : (
-                      <span className="text-xs font-medium text-slate-400">
-                        Detalle no disponible
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </motion.article>
-            );
-          })}
+          {filteredCoins.map((coin, index) => (
+            <CoinCard
+              key={coin.id}
+              id={coin.id}
+              name={coin.name}
+              symbol={coin.symbol}
+              image={coin.image}
+              gradient={coin.gradient}
+              price={coin.overview?.price}
+              change24h={coin.overview?.change24h}
+              history={coin.history}
+              index={index}
+              supportsDetail={coin.supportsDetail}
+              isDefault={coin.entry.isDefault}
+              onRemove={handleRemoveToken}
+            />
+          ))}
         </section>
       </div>
     </main>
