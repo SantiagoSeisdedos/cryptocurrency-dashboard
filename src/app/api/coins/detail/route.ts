@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
         { status: error.status }
       );
     }
-    console.error("Detail API error:", error);
     return NextResponse.json(
       {
         error: true,

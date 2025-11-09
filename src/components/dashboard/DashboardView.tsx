@@ -358,8 +358,7 @@ export default function DashboardView({
           setConnectionStatus("connected");
           setLastError(null);
         }
-      } catch (error) {
-        console.error("SSE parsing error", error);
+      } catch {
         setConnectionStatus("error");
         setLastError("No se pudo interpretar la actualización en vivo.");
       }
@@ -523,11 +522,11 @@ export default function DashboardView({
               ) {
                 return;
               }
-              console.error("Detail fallback error", detailError);
               if (!cancelled) {
-                setWatchlistError((prev) =>
-                  prev ??
-                  "No fue posible obtener una cotización alternativa para la moneda seleccionada."
+                setWatchlistError(
+                  (prev) =>
+                    prev ??
+                    "No fue posible obtener una cotización alternativa para la moneda seleccionada."
                 );
               }
             }
@@ -574,10 +573,7 @@ export default function DashboardView({
               const raw = Array.isArray(
                 (historyPayload as { history?: number[] })?.history
               )
-                ? [
-                    ...((historyPayload as { history: number[] }).history ??
-                      []),
-                  ]
+                ? [...((historyPayload as { history: number[] }).history ?? [])]
                 : [];
 
               if (raw.length === 0) {
@@ -619,7 +615,6 @@ export default function DashboardView({
             ) {
               return;
             }
-            console.error("History fetch error", historyError);
             if (!cancelled) {
               const message =
                 historyError instanceof Error
@@ -632,11 +627,7 @@ export default function DashboardView({
 
         const timestamp = Date.now();
         overviewUpdates.forEach(({ id, overview }) =>
-          setCacheEntry(
-            id,
-            { overview, overviewUpdatedAt: timestamp },
-            false
-          )
+          setCacheEntry(id, { overview, overviewUpdatedAt: timestamp }, false)
         );
         historyUpdates.forEach(({ id, series }) =>
           setCacheEntry(
@@ -652,7 +643,6 @@ export default function DashboardView({
         if (error instanceof Error && error.name === "AbortError") {
           return;
         }
-        console.error("Watchlist fetch error", error);
         idsToFetch.forEach((id) => requestedIdsRef.current.delete(id));
         if (!cancelled) {
           const message =
@@ -729,7 +719,6 @@ export default function DashboardView({
           if ((error as Error)?.name === "AbortError") {
             return;
           }
-          console.error("Search error", error);
           const message =
             error instanceof Error
               ? error.message

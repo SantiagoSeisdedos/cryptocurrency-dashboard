@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
         { status: 429 }
       );
     }
-    console.error("History API error:", error);
     return NextResponse.json(
       {
         error: true,

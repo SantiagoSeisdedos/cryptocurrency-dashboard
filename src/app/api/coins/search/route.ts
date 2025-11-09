@@ -60,8 +60,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ coins: normalised });
-  } catch (error) {
-    console.error("Search API error:", error);
+  } catch {
     return NextResponse.json(
       {
         error: true,
@@ -71,4 +70,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
         { status: 429 }
       );
     }
-    console.error("Overview API error:", error);
     return NextResponse.json(
       {
         error: true,
@@ -40,4 +39,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

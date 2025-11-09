@@ -26,7 +26,6 @@ export async function loadLivePrices(
     if (error instanceof CoinGeckoRateLimitError) {
       return { error: true, message: error.message };
     }
-    console.error("Error loading live prices:", error);
     return {
       error: true,
       message: "No fue posible obtener los precios actuales para el streaming.",

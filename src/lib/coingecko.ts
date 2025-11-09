@@ -4,7 +4,9 @@ import { SUPPORTED_COINS, type SupportedCoinId } from "./coins";
 
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
 const COINGECKO_API_KEY =
-  process.env.COINGECKO_API_KEY ?? process.env.NEXT_PUBLIC_COINGECKO_API_KEY ?? null;
+  process.env.COINGECKO_API_KEY ??
+  process.env.NEXT_PUBLIC_COINGECKO_API_KEY ??
+  null;
 
 export class CoinGeckoRateLimitError extends Error {
   status: number;
@@ -105,8 +107,7 @@ export async function fetchCoinMarketOverview(
       `${COINGECKO_API}/simple/price?${params.toString()}`,
       fetchConfig
     );
-  } catch (error) {
-    console.error(error);
+  } catch {
     throw new Error("No fue posible obtener los precios actuales.");
   }
 
