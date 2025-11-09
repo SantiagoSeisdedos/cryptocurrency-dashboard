@@ -10,6 +10,7 @@ import {
 import { getCoinMeta } from "@/lib/coins";
 import Sparkline from "@/components/dashboard/Sparkline";
 import { currencyFormatter } from "@/lib/format";
+import CoinCachePersistor from "@/components/dashboard/CoinCachePersistor";
 
 type PageParams = {
   id: string;
@@ -21,19 +22,17 @@ type PageProps = {
 
 export default async function CoinDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const meta = getCoinMeta(id);
-
-  if (!meta) {
-    notFound();
-  }
+  const normalizedId = id.toLowerCase();
+  const baseMeta = getCoinMeta(normalizedId);
 
   let detail;
   let error: Error | null = null;
   let history: number[] = [];
 
   try {
-    detail = await fetchCoinDetail(id);
-    history = await fetchCoinMarketHistory(meta.id, {
+    detail = await fetchCoinDetail(normalizedId);
+    const historyTarget = detail?.id ?? baseMeta?.id ?? normalizedId;
+    history = await fetchCoinMarketHistory(historyTarget, {
       days: 30,
       points: 30,
       interval: "daily",
@@ -70,8 +69,24 @@ export default async function CoinDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  if (history.length === 1) {
+    history = [...history, history[0]];
+  } else if (history.length === 0 && detail.price) {
+    history = [detail.price, detail.price];
+  }
+
+  const meta = baseMeta ?? {
+    id: detail.id,
+    name: detail.name,
+    symbol: detail.symbol,
+    image: detail.image ?? null,
+  };
+
+  const displayImage = detail.image ?? meta.image;
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950">
+      <CoinCachePersistor detail={detail} history={history} />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-900 via-slate-950 to-black" />
       <div className="pointer-events-none absolute -top-64 left-1/2 h-128 w-lg -translate-x-1/2 rounded-full bg-cyan-500/20 blur-3xl" />
 
@@ -88,14 +103,20 @@ export default async function CoinDetailPage({ params }: PageProps) {
           <div className="flex flex-col gap-6 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-10">
             <div className="flex items-center gap-6">
               <div className="relative h-20 w-20 overflow-hidden rounded-3xl border border-white/20 bg-white/10">
-                <Image
-                  src={detail.image ?? meta.image}
-                  alt={meta.name}
-                  fill
-                  sizes="80px"
-                  className="object-contain p-4"
-                  priority
-                />
+                {displayImage ? (
+                  <Image
+                    src={displayImage}
+                    alt={meta.name}
+                    fill
+                    sizes="80px"
+                    className="object-contain p-4"
+                    priority
+                  />
+                ) : (
+                  <div className="grid h-full w-full place-items-center bg-cyan-500/20 text-xl font-semibold text-cyan-200">
+                    {meta.symbol.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
               </div>
               <div>
                 <h1 className="text-3xl font-semibold text-white sm:text-4xl">
@@ -183,8 +204,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
         </section>
 
         <div className="mt-4 text-sm text-slate-400 sm:text-center">
-          Fuente de datos: CoinGecko API — actualizaciones automáticas cada 60
-          segundos.
+          Fuente de datos: CoinGecko API — actualizaciones automáticas cada 60 segundos.
         </div>
       </div>
     </main>

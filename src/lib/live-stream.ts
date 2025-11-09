@@ -1,6 +1,9 @@
 import type { ReadableStreamDefaultController } from "stream/web";
-import { fetchCoinMarketOverview } from "./coingecko";
-import type { CoinOverview } from "./coingecko";
+import {
+  CoinGeckoRateLimitError,
+  fetchCoinMarketOverview,
+  type CoinOverview,
+} from "./coingecko";
 
 export interface LiveStreamMessage {
   coins?: CoinOverview[];
@@ -13,9 +16,22 @@ type PushFn = (data: LiveStreamMessage) => void;
 type ErrorFn = (error: Error) => void;
 type KeepAliveFn = () => void;
 
-export async function loadLivePrices(): Promise<LiveStreamMessage> {
-  const coins = await fetchCoinMarketOverview({ cache: "no-store" });
-  return { coins, updatedAt: new Date().toISOString() };
+export async function loadLivePrices(
+  ids?: string[]
+): Promise<LiveStreamMessage> {
+  try {
+    const coins = await fetchCoinMarketOverview({ cache: "no-store", ids });
+    return { coins, updatedAt: new Date().toISOString() };
+  } catch (error) {
+    if (error instanceof CoinGeckoRateLimitError) {
+      return { error: true, message: error.message };
+    }
+    console.error("Error loading live prices:", error);
+    return {
+      error: true,
+      message: "No fue posible obtener los precios actuales para el streaming.",
+    };
+  }
 }
 
 export function createStreamingLoop(
@@ -23,11 +39,12 @@ export function createStreamingLoop(
   intervalMs: number,
   push: PushFn,
   onError: ErrorFn,
-  keepAlive: KeepAliveFn
+  keepAlive: KeepAliveFn,
+  ids?: string[]
 ) {
   const tick = async () => {
     try {
-      const payload = await loadLivePrices();
+      const payload = await loadLivePrices(ids);
       push(payload);
     } catch (error) {
       onError(error as Error);
