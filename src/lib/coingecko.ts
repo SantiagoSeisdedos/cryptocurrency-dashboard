@@ -1,8 +1,25 @@
 import "server-only";
 
-import { COIN_ID_SET, SUPPORTED_COINS, type SupportedCoinId } from "./coins";
+import { SUPPORTED_COINS, type SupportedCoinId } from "./coins";
 
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
+const COINGECKO_API_KEY =
+  process.env.COINGECKO_API_KEY ??
+  process.env.NEXT_PUBLIC_COINGECKO_API_KEY ??
+  null;
+
+export class CoinGeckoRateLimitError extends Error {
+  status: number;
+
+  constructor(
+    message = "Se alcanzó el límite de la API pública de CoinGecko. Intenta nuevamente en un momento o configura tu propia API key (ver README).",
+    status = 429
+  ) {
+    super(message);
+    this.name = "CoinGeckoRateLimitError";
+    this.status = status;
+  }
+}
 
 interface SimplePriceResponse {
   [key: string]: {
@@ -12,7 +29,7 @@ interface SimplePriceResponse {
 }
 
 export interface CoinOverview {
-  id: SupportedCoinId;
+  id: SupportedCoinId | string;
   name: string;
   symbol: string;
   price: number;
@@ -20,7 +37,7 @@ export interface CoinOverview {
 }
 
 export interface CoinDetail {
-  id: SupportedCoinId;
+  id: SupportedCoinId | string;
   name: string;
   symbol: string;
   price: number;
@@ -42,52 +59,78 @@ interface MarketChartOptions extends FetchOptions {
   points?: number;
 }
 
-export async function fetchCoinMarketOverview(
-  options?: FetchOptions
-): Promise<CoinOverview[]> {
-  const ids = SUPPORTED_COINS.map((coin) => coin.id).join(",");
+function createFetchConfig(
+  options?: FetchOptions,
+  defaultRevalidate = 60
+): RequestInit & { next?: { revalidate: number } } {
+  const config: RequestInit & { next?: { revalidate: number } } = {};
 
+  if (COINGECKO_API_KEY) {
+    config.headers = {
+      "x-cg-pro-api-key": COINGECKO_API_KEY,
+    };
+  }
+
+  if (options?.cache) {
+    config.cache = options.cache;
+  }
+
+  if (options?.cache !== "no-store") {
+    config.next = { revalidate: options?.revalidate ?? defaultRevalidate };
+  }
+
+  return config;
+}
+
+function assertRateLimit(response: Response) {
+  if (response.status === 429) {
+    throw new CoinGeckoRateLimitError();
+  }
+}
+
+type CoinId = SupportedCoinId | string;
+
+export async function fetchCoinMarketOverview(
+  options?: FetchOptions & { ids?: CoinId[] }
+): Promise<CoinOverview[]> {
+  const idsList = options?.ids ?? SUPPORTED_COINS.map((coin) => coin.id);
   const params = new URLSearchParams({
-    ids,
+    ids: idsList.join(","),
     vs_currencies: "usd",
     include_24hr_change: "true",
   });
 
-  const fetchConfig: RequestInit & { next?: { revalidate: number } } = {};
-
-  if (options?.cache) {
-    fetchConfig.cache = options.cache;
-  }
-
-  if (options?.cache !== "no-store") {
-    fetchConfig.next = { revalidate: options?.revalidate ?? 60 };
-  }
+  const fetchConfig = createFetchConfig(options);
   let response: Response;
   try {
     response = await fetch(
       `${COINGECKO_API}/simple/price?${params.toString()}`,
       fetchConfig
     );
-  } catch(error) {
-    console.error(error);
+  } catch {
     throw new Error("No fue posible obtener los precios actuales.");
   }
+
+  assertRateLimit(response);
 
   if (!response.ok) {
     throw new Error("No fue posible obtener los precios actuales.");
   }
 
   const result: SimplePriceResponse = await response.json();
-  return SUPPORTED_COINS.flatMap((coin) => {
-    const entry = result[coin.id];
+
+  return idsList.flatMap((id) => {
+    const entry = result[id];
     if (!entry || entry.usd === undefined) {
       return [];
     }
 
+    const meta = SUPPORTED_COINS.find((coin) => coin.id === id);
+
     return {
-      id: coin.id,
-      name: coin.name,
-      symbol: coin.symbol,
+      id: id as SupportedCoinId,
+      name: meta?.name ?? id.toUpperCase(),
+      symbol: meta?.symbol ?? id.slice(0, 5).toUpperCase(),
       price: entry.usd ?? 0,
       change24h: entry.usd_24h_change ?? 0,
     };
@@ -98,24 +141,15 @@ export async function fetchCoinDetail(
   id: string,
   options?: FetchOptions
 ): Promise<CoinDetail | undefined> {
-  if (!COIN_ID_SET.has(id as SupportedCoinId)) {
-    return undefined;
-  }
+  const normalizedId = id.toLowerCase();
 
-  const fetchConfig: RequestInit & { next?: { revalidate: number } } = {};
-
-  if (options?.cache) {
-    fetchConfig.cache = options.cache;
-  }
-
-  if (options?.cache !== "no-store") {
-    fetchConfig.next = { revalidate: options?.revalidate ?? 60 };
-  }
-
+  const fetchConfig = createFetchConfig(options);
   const response = await fetch(
-    `${COINGECKO_API}/coins/${id}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`,
+    `${COINGECKO_API}/coins/${normalizedId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`,
     fetchConfig
   );
+
+  assertRateLimit(response);
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -132,12 +166,10 @@ export async function fetchCoinDetail(
     return undefined;
   }
 
-  const castId = id as SupportedCoinId;
-
   return {
-    id: castId,
-    name: data.name ?? castId.toUpperCase(),
-    symbol: (data.symbol ?? castId).toUpperCase(),
+    id: (data?.id ?? normalizedId) as SupportedCoinId | string,
+    name: data.name ?? normalizedId.toUpperCase(),
+    symbol: (data.symbol ?? normalizedId).toUpperCase(),
     price: marketData.current_price.usd ?? 0,
     change24h: marketData.price_change_percentage_24h ?? 0,
     high24h: marketData.high_24h?.usd ?? 0,
@@ -148,28 +180,22 @@ export async function fetchCoinDetail(
 }
 
 export async function fetchCoinMarketHistory(
-  id: SupportedCoinId,
+  id: string,
   options?: MarketChartOptions
 ): Promise<number[]> {
-  if (!COIN_ID_SET.has(id)) {
-    return [];
-  }
-
   const params = new URLSearchParams({
     vs_currency: "usd",
     days: String(options?.days ?? 7),
     interval: options?.interval ?? "daily",
   });
 
-  const fetchConfig: RequestInit & { next?: { revalidate: number } } = {};
-
-  if (options?.cache) {
-    fetchConfig.cache = options.cache;
-  }
-
-  if (options?.cache !== "no-store") {
-    fetchConfig.next = { revalidate: options?.revalidate ?? 600 };
-  }
+  const fetchConfig = createFetchConfig(
+    {
+      ...options,
+      revalidate: options?.revalidate ?? 600,
+    },
+    600
+  );
 
   let response: Response;
   try {
@@ -180,6 +206,8 @@ export async function fetchCoinMarketHistory(
   } catch {
     return [];
   }
+
+  assertRateLimit(response);
 
   if (!response.ok) {
     return [];

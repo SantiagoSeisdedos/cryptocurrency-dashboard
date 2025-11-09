@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { CoinGeckoRateLimitError } from "@/lib/coingecko";
 import { createStreamingLoop, type LiveStreamMessage } from "@/lib/live-stream";
 
 const encoder = new TextEncoder();
@@ -9,7 +10,15 @@ function formatSseMessage(data: LiveStreamMessage) {
   return encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const idsParam = request.nextUrl.searchParams.get("ids");
+  const ids = idsParam
+    ? idsParam
+        .split(",")
+        .map((id) => id.trim().toLowerCase())
+        .filter(Boolean)
+    : undefined;
+
   let stopLoop: (() => void) | null = null;
 
   const stream = new ReadableStream({
@@ -18,14 +27,18 @@ export async function GET() {
         controller,
         STREAM_INTERVAL_MS,
         (payload) => controller.enqueue(formatSseMessage(payload)),
-        () =>
+        (error) =>
           controller.enqueue(
             formatSseMessage({
               error: true,
-              message: "No fue posible actualizar los precios en vivo.",
+              message:
+                error instanceof CoinGeckoRateLimitError
+                  ? error.message
+                  : "No fue posible actualizar los precios en vivo.",
             })
           ),
-        () => controller.enqueue(encoder.encode(":keep-alive\n\n"))
+        () => controller.enqueue(encoder.encode(":keep-alive\n\n")),
+        ids
       );
     },
     cancel() {
