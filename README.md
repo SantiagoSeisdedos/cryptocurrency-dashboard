@@ -2,7 +2,11 @@
 
 A Next.js 16 (App Router) application that surfaces near real-time cryptocurrency prices using the public CoinGecko API.
 
-![Crypto Dashboard](./public/window.svg)
+## Crypto Dashboard: Video Demo [Part 1](https://www.loom.com/share/4c5016d94c0649e9bd64c88ef46be75c) & [Part 2](https://www.loom.com/share/9ec148ecc2ca4ed3bb68a9b1355adbad)
+
+<img width="2546" height="1385" alt="Screenshot 2025-11-10 014748" src="https://github.com/user-attachments/assets/5359d9c3-618e-4cbb-a8c2-12fa0230dcde" />
+<img width="2560" height="1440" alt="Screenshot 2025-11-10 014759" src="https://github.com/user-attachments/assets/695ab3af-cf22-4106-8d8b-b544d7f0e685" />
+<img width="2550" height="1387" alt="Screenshot 2025-11-10 015122" src="https://github.com/user-attachments/assets/ff9f62f9-b19b-422e-8d74-d46db66c1e75" />
 
 ### Features
 
