@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         {
           error: true,
           message:
-            "Se alcanzó el límite de la API pública de CoinGecko al buscar monedas. Intenta nuevamente más tarde o usa tu propia API key.",
+            "The public CoinGecko API limit was reached while searching. Try again later or provide your own API key.",
         },
         { status: 429 }
       );
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: true,
-          message: "No fue posible buscar monedas en este momento.",
+          message: "Unable to search for coins right now.",
         },
         { status: 502 }
       );
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: true,
-        message: "Error inesperado al buscar monedas.",
+        message: "Unexpected error while searching for coins.",
       },
       { status: 500 }
     );

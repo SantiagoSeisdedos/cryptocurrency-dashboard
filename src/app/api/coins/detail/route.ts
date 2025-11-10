@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
 
   if (!id) {
     return NextResponse.json(
-      { error: true, message: "Se requiere un identificador de moneda." },
+      { error: true, message: "A coin identifier is required." },
       { status: 400 }
     );
   }
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const detail = await fetchCoinDetail(id, { cache: "no-store" });
     if (!detail) {
       return NextResponse.json(
-        { error: true, message: "No se encontró la criptomoneda solicitada." },
+        { error: true, message: "The requested coin could not be found." },
         { status: 404 }
       );
     }
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: true,
-        message: "No fue posible obtener la cotización detallada.",
+        message: "Unable to retrieve coin details.",
       },
       { status: 500 }
     );

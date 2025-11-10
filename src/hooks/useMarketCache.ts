@@ -64,7 +64,7 @@ export function useMarketCache({
         JSON.stringify(cacheRef.current)
       );
     } catch (error) {
-      console.warn("No fue posible persistir la caché de mercado.", error);
+      console.warn("Failed to persist market cache.", error);
     }
   }, []);
 
@@ -95,7 +95,7 @@ export function useMarketCache({
         cacheRef.current = parsed;
       }
     } catch (error) {
-      console.warn("No fue posible leer la caché de mercado.", error);
+      console.warn("Failed to read market cache.", error);
     } finally {
       setCacheReady(true);
     }

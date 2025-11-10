@@ -20,7 +20,7 @@ export default function EmptyPerformer({
       )}
       <div>
         <p className="text-sm font-semibold text-white">{placeholder}</p>
-        <p className="text-xs font-medium text-slate-400">Sin datos</p>
+        <p className="text-xs font-medium text-slate-400">No data</p>
       </div>
     </div>
   );

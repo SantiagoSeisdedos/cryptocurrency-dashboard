@@ -1,70 +1,84 @@
 ## Crypto Dashboard
 
-Aplicación construida con Next.js 16 (App Router) que muestra precios en tiempo casi real de un set curado de criptomonedas utilizando la API pública de CoinGecko.
+A Next.js 16 (App Router) application that surfaces near real-time cryptocurrency prices using the public CoinGecko API.
 
 ![Crypto Dashboard](./public/window.svg)
 
-### Características
+### Features
 
-- Renderizado del lado del servidor con revalidación cada 60 s.
-- Vista principal con tarjetas animadas, ranking de desempeño y acceso directo al detalle.
-- Ruta dinámica `/coins/[id]` con precio actual, cambio porcentual y rangos alto/bajo de las últimas 24 h.
-- Estados de error y carga uniformados, diseño responsive optimizado para mobile y desktop.
+- Server-rendered dashboard revalidated every 60 seconds.
+- Watchlist with animated cards, top movers, filters, and quick access to detailed views.
+- Dynamic route `/coins/[id]` exposing current price, 24h change, and high/low ranges.
+- SSE (Server-Sent Events) stream for live updates plus local caching to smooth out API rate-limit spikes.
+- Responsive layout, Tailwind utility styling, and consistent empty/error states.
 
-### Requisitos previos
+### Getting started
+
+Prerequisites:
 
 - Node.js 20+
-- npm 10+ (el proyecto incluye `package-lock.json`)
+- npm 10+ (a `package-lock.json` is included)
 
-### Instalación y ejecución
+Install dependencies and launch the dev server:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Visita `http://localhost:3000` para ver el panel en modo desarrollo. Puedes generar la build de producción con:
+Visit `http://localhost:3000` to explore the dashboard. Production build:
 
 ```bash
 npm run build
 npm start
 ```
 
-### Decisiones de diseño
+### Useful scripts
 
-- **CoinGecko API**: se usa el endpoint `simple/price` para el listado y `coins/{id}` para el detalle. Ambos se revalidan cada 60 s balanceando frescura y cuota de peticiones.
-- **Gestión de datos**: las monedas soportadas y sus metadatos (nombre, símbolo, gradientes, imagen) se centralizan en `src/lib/coins.ts` para evitar duplicación.
-- **UI/UX**: Tailwind CSS 4 aporta utilidades atómicas; se añaden degradados, tarjetas con glassmorphism y feedback visual consistente en carga/errores.
-- **Mini gráficos**: las tarjetas muestran sparklines generadas con datos de `market_chart` (7 días, intervalo diario) preprocesados en el servidor y enriquecidos en streaming SSE.
-- **Resiliencia ante límites**: cada petición captura el estado 429 de CoinGecko, informa al usuario del límite alcanzado y permite reintentar una vez que vuelva a estar disponible.
+- `npm run lint` – run ESLint.
+- `npm run analyze` – generate bundle stats (`ANALYZE=true next build --webpack`). Open `.next/analyze/client.html` in your browser to inspect the treemap.
 
-### Manejo de límites de la API de CoinGecko
+### Performance notes
 
-La aplicación usa la cuota pública de CoinGecko, que puede responder con `429 Too Many Requests` cuando se excede el límite. En ese caso verás un mensaje explícito:
+- Images are served through `next/image`, with only the above-the-fold logos flagged as `priority`. All other thumbnails are lazily loaded.
+- The dashboard seeds and hydrates a local cache (`localStorage`) so returning users see the last known prices and sparklines immediately, even if CoinGecko briefly rate-limits fresh requests.
+- Streaming updates append rather than recreate history arrays to keep React renders shallow.
 
-> *"Se alcanzó el límite de la API pública de CoinGecko. Intenta nuevamente en un momento o configura tu propia API key (ver README)."*
+### Assumptions & design decisions
 
-Si dispones de una cuenta Pro/Premium puedes añadir tu propia clave sin tocar el código:
+- **Single fiat currency (USD)** – CoinGecko requests and sparklines are denominated in USD to keep the interface consistent. Extending to more currencies would require tweaking the API params and UI copy.
+- **Server-Sent Events cadence (60s)** – matching CoinGecko rate limits while preserving timely updates. The server also emits keep-alives and persists the last timestamp to avoid hydration mismatches.
+- **Local caching** – watchlist entries and historical data are stored in `localStorage`. TTLs ensure we reuse recent data during API hiccups but still re-fetch after a grace period.
+- **Default watchlist** – five curated assets ship with the app so first-time users see data immediately; custom tokens added via search persist between sessions.
+- **Framer Motion for micro-interactions** – lightweight animations improve clarity when cards update. Imported APIs stay scoped to client components to limit bundle size.
+- **Error messaging** – all fetchers bubble meaningful messages (rate limit, missing asset, etc.) to surface useful context in the UI without leaking implementation details.
 
-1. Crea un archivo `.env.local` en la raíz del proyecto (o reutiliza el existente).
-2. Define la variable:
+### CoinGecko rate limits
+
+The app uses the public tier of CoinGecko, which returns `429 Too Many Requests` when the quota is exhausted. In that case the UI displays:
+
+> *"The public CoinGecko API limit was reached. Try again shortly or configure your own API key (see README)."*
+
+If you have a Pro/Premium account you can add your key without code changes:
+
+1. Create `.env.local` in the project root (or reuse an existing one).
+2. Define the variable:
 
    ```bash
-   COINGECKO_API_KEY=tu_api_key_de_coingecko
+   COINGECKO_API_KEY=your_coin_gecko_key
    ```
 
-3. Reinicia el servidor (`npm run dev`) o la build (`npm run build`) para que Next.js cargue la variable.
+3. Restart `npm run dev` (or rerun `npm run build`) so Next.js picks up the variable.
 
-Cuando la clave está presente, cada petición incluye el header `x-cg-pro-api-key`, lo que eleva considerablemente el límite y elimina los mensajes de cuota para tu cuenta.
-- **Accesibilidad**: contrastes AA, texto descriptivo y navegación basada en enlaces semánticos.
+All requests automatically include the `x-cg-pro-api-key` header when the variable is defined.
 
-### Scripts útiles
+### Design decisions
 
-- `npm run lint`: ejecuta ESLint según la configuración de Next.js.
+- **Data helpers** – supported coins and metadata (name, symbol, gradients, image) live in `src/lib/coins.ts` to avoid duplication.
+- **Mini charts** – sparklines use 7-day daily data pre-fetched on the server; the SSE stream gradually appends real-time points.
+- **Rate-limit awareness** – every request traps `429` responses, surfaces a friendly error, and allows users to retry once the quota resets.
 
-### Próximos pasos sugeridos
+### Further reading
 
-- Profundiza en el streaming SSE en `docs/streaming.md`.
-- Añadir gráficos históricos usando la API de market charts.
-- Implementar tests de componentes con Vitest/Testing Library.
-- Permitir seleccionar la moneda fíat para visualizar precios en distintas divisas.
+- Streaming implementation notes: `docs/streaming.md`
+- Consider adding component tests (Vitest/Testing Library) or fiat currency selection as follow-up improvements.

@@ -44,7 +44,7 @@ export default function CoinCachePersistor({
 
       window.localStorage.setItem(MARKET_CACHE_KEY, JSON.stringify(cache));
     } catch (error) {
-      console.warn("No fue posible persistir la caché del detalle.", error);
+      console.warn("Failed to persist detail cache entry.", error);
     }
   }, [detail, history]);
 

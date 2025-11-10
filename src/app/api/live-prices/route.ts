@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
               message:
                 error instanceof CoinGeckoRateLimitError
                   ? error.message
-                  : "No fue posible actualizar los precios en vivo.",
+                  : "Unable to refresh live prices.",
             })
           ),
         () => controller.enqueue(encoder.encode(":keep-alive\n\n")),

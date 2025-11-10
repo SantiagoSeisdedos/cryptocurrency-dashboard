@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: true,
-        message: "No fue posible obtener el histórico solicitado.",
+        message: "Unable to fetch the requested historical data.",
       },
       { status: 500 }
     );

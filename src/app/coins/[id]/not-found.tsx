@@ -9,18 +9,18 @@ export default function CoinNotFound() {
           <CircleAlert className="h-10 w-10" />
         </div>
         <h1 className="text-3xl font-semibold text-white">
-          No encontramos esa criptomoneda
+          We could not find that coin
         </h1>
         <p className="text-sm text-slate-300 sm:text-base">
-          Verifica el identificador y vuelve a intentarlo, o regresa al listado
-          principal para explorar las monedas disponibles.
+          Double-check the identifier and try again, or head back to the main
+          dashboard to explore the available assets.
         </p>
         <Link
           href="/"
           className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/70 px-4 py-2 text-sm font-semibold text-cyan-300 transition-colors hover:text-cyan-200"
         >
           <ArrowLeft className="h-4 w-4" />
-          Volver al tablero
+          Back to dashboard
         </Link>
       </div>
     </main>
