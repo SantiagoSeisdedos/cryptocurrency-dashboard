@@ -82,6 +82,42 @@ All requests automatically include the `x-cg-pro-api-key` header when the variab
 - **Mini charts** – sparklines use 7-day daily data pre-fetched on the server; the SSE stream gradually appends real-time points.
 - **Rate-limit awareness** – every request traps `429` responses, surfaces a friendly error, and allows users to retry once the quota resets.
 
+### 📝 Project Notes
+
+This project was built as part of a frontend technical challenge for **Blockchain.com** (Explorer team).
+The main goal was to create a cryptocurrency dashboard using Next.js that fetches real-time market data from the CoinGecko API for at least five tokens.
+
+### ✅ Requirements Completed
+
+- Built with **Next.js** and **TypeScript**.
+- Fetched **real-time token data** (price, market cap, volume, and change percentage) using the **CoinGecko public API**.
+- Displayed live market information in a responsive and user-friendly dashboard.
+
+### 🚀 Additional Features Implemented
+
+- **Search bar with autocomplete**: allows users to quickly find tokens by name or symbol.
+- **Sorting and filtering options**: users can sort tokens by price, market cap, or 24h change.
+- **Token detail view**: each token includes a static price chart and extended information.
+- **Automatic refetching system**: implemented to update data periodically and maintain accuracy.
+- **Local storage caching**: reduces unnecessary API calls by storing previously fetched data locally.
+- **Support for more tokens** than initially required, increasing the dashboard’s usefulness.
+
+### ⚠️ API Limitations and Considerations
+
+By including more tokens than required, the app approached the **rate limits** of the free CoinGecko API.
+To handle this, I implemented local caching and periodic refetch intervals to avoid exceeding API limits.
+
+**In a real-world scenario, I would consider:**
+- Using **multiple data providers** (e.g., Covalent, Alchemy, Moralis, Li.Fi, or Jupiter) to diversify data sources and avoid dependency on a single API.
+- Adding an API key or using a backend proxy to manage and balance requests.
+- Implementing a **rate-limit queue** to throttle requests dynamically when approaching API limits.
+
+**💡 Future Improvements**
+
+- Replace static charts with **real-time dynamic charts** using libraries like Recharts or Chart.js.
+- Add **user preferences** (e.g., favorite tokens, preferred fiat currency).
+- Integrate **WebSocket-based price streaming** for instant updates.
+
 ### Further reading
 
 - Streaming implementation notes: `docs/streaming.md`
