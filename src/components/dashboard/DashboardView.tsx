@@ -161,13 +161,13 @@ export default function DashboardView({
   const statusConfig = useMemo(() => {
     switch (connectionStatus) {
       case "connected":
-        return { label: "Conectado", tone: "text-emerald-300" };
+        return { label: "Connected", tone: "text-emerald-300" };
       case "connecting":
-        return { label: "Conectando...", tone: "text-slate-300" };
+        return { label: "Connecting...", tone: "text-slate-300" };
       case "error":
-        return { label: "Error de streaming", tone: "text-rose-300" };
+        return { label: "Streaming error", tone: "text-rose-300" };
       default:
-        return { label: "Desconocido", tone: "text-slate-400" };
+        return { label: "Unknown", tone: "text-slate-400" };
     }
   }, [connectionStatus]);
 
@@ -294,7 +294,7 @@ export default function DashboardView({
         if (payload?.error) {
           setConnectionStatus("error");
           setLastError(
-            payload.message ?? "No fue posible actualizar los precios en vivo."
+            payload.message ?? "Unable to refresh live prices."
           );
           return;
         }
@@ -360,7 +360,7 @@ export default function DashboardView({
         }
       } catch {
         setConnectionStatus("error");
-        setLastError("No se pudo interpretar la actualización en vivo.");
+        setLastError("Could not parse the live update message.");
       }
     };
 
@@ -443,7 +443,7 @@ export default function DashboardView({
         if (!response.ok) {
           const message =
             (payload as { message?: string })?.message ??
-            "No fue posible obtener las cotizaciones.";
+            "Unable to fetch quotes.";
           idsToFetch.forEach((id) => requestedIdsRef.current.delete(id));
           if (!cancelled) {
             setWatchlistError(message);
@@ -488,7 +488,7 @@ export default function DashboardView({
               if (!detailResponse.ok) {
                 const message =
                   (detailPayload as { message?: string })?.message ??
-                  "No fue posible obtener la cotización detallada.";
+                  "Unable to fetch coin detail.";
                 if (!cancelled) {
                   setWatchlistError((prev) => prev ?? message);
                 }
@@ -526,7 +526,7 @@ export default function DashboardView({
                 setWatchlistError(
                   (prev) =>
                     prev ??
-                    "No fue posible obtener una cotización alternativa para la moneda seleccionada."
+                    "Unable to obtain an alternate quote for this coin."
                 );
               }
             }
@@ -564,7 +564,7 @@ export default function DashboardView({
               if (!cancelled) {
                 const message =
                   (historyPayload as { message?: string })?.message ??
-                  "Histórico no disponible.";
+                  "Historical data is not available.";
                 setWatchlistError((prev) => prev ?? message);
               }
               continue;
@@ -619,7 +619,7 @@ export default function DashboardView({
               const message =
                 historyError instanceof Error
                   ? historyError.message
-                  : "No fue posible obtener histórico adicional.";
+                  : "Unable to retrieve additional historical data.";
               setWatchlistError((prev) => prev ?? message);
             }
           }
@@ -648,7 +648,7 @@ export default function DashboardView({
           const message =
             error instanceof Error
               ? error.message
-              : "No se pudo sincronizar una o más monedas nuevas. Intenta nuevamente.";
+              : "Unable to sync one or more watchlist coins. Please try again.";
           setWatchlistError(message);
         }
       } finally {
@@ -706,7 +706,7 @@ export default function DashboardView({
           if (!response.ok) {
             const message =
               (payload as { message?: string })?.message ??
-              "No fue posible completar la búsqueda.";
+              "Unable to complete the search.";
             throw new Error(message);
           }
 
@@ -722,7 +722,7 @@ export default function DashboardView({
           const message =
             error instanceof Error
               ? error.message
-              : "Error al buscar monedas. Intenta otra vez.";
+              : "Something went wrong while searching. Please try again.";
           setSearchError(message);
         })
         .finally(() => {
@@ -773,7 +773,7 @@ export default function DashboardView({
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-black" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-900 via-slate-950 to-black" />
       <div className="pointer-events-none absolute -top-48 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-500/20 blur-3xl" />
 
       <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-4 pb-16 pt-20 sm:px-8">
@@ -788,14 +788,14 @@ export default function DashboardView({
             <div className="flex flex-col gap-6">
               <div className="mb-2 inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-3 py-1 text-sm font-medium text-cyan-200">
                 <Sparkle className="h-4 w-4" />
-                <span>Mercado en vivo</span>
+                <span>Live market</span>
               </div>
               <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-                Tablero de precios cripto
+                Crypto price dashboard
               </h1>
               <p className="mt-3 max-w-xl text-sm text-slate-300 sm:text-base">
-                Gestiona tu watchlist cripto, descubre nuevos tokens y compara
-                desempeño con actualizaciones automáticas cada minuto.
+                Manage your crypto watchlist, discover new tokens, and compare
+                performance with near real-time updates.
               </p>
               {/* Search form */}
               <form
@@ -805,7 +805,7 @@ export default function DashboardView({
                 <Search className="h-4 w-4 text-cyan-300" />
                 <input
                   className="w-full bg-transparent py-1 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
-                  placeholder="Buscar tokens por nombre o símbolo (ej. avax, arbitrum, ton)..."
+                  placeholder="Search tokens by name or symbol (e.g. avax, arbitrum, ton)..."
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   autoComplete="off"
@@ -821,7 +821,7 @@ export default function DashboardView({
                       setSearchResults([]);
                     }}
                     className="text-slate-400 transition-colors hover:text-slate-200"
-                    aria-label="Limpiar búsqueda"
+                    aria-label="Clear search"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -866,7 +866,7 @@ export default function DashboardView({
                             </div>
                             {alreadyInWatchlist ? (
                               <span className="text-xs font-semibold text-emerald-300">
-                                En watchlist
+                                In watchlist
                               </span>
                             ) : (
                               <Plus className="h-4 w-4 text-cyan-300" />
@@ -891,7 +891,7 @@ export default function DashboardView({
                 <div>
                   <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-400">
                     <Radio className="h-4 w-4 text-cyan-300" />
-                    Estado del streaming
+                    Streaming status
                   </p>
                   <p
                     className={`mt-2 text-sm font-semibold ${statusConfig.tone}`}
@@ -899,7 +899,7 @@ export default function DashboardView({
                     {statusConfig.label}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Última actualización:{" "}
+                    Last update:{" "}
                     <span className="font-medium text-slate-200">
                       {lastUpdatedLabel}
                     </span>
@@ -913,7 +913,7 @@ export default function DashboardView({
                       className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:border-emerald-400 hover:text-emerald-100"
                     >
                       <RefreshCw className="h-4 w-4" />
-                      Reintentar
+                      Retry
                     </button>
                   )}
                 </div>
@@ -932,7 +932,7 @@ export default function DashboardView({
             <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-5 py-5">
               <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-400">
                 <span>Watchlist</span>
-                <span>{entries.length} activos</span>
+                <span>{entries.length} assets</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {entries.map((entry) => (
@@ -946,7 +946,7 @@ export default function DashboardView({
                         type="button"
                         onClick={() => handleRemoveToken(entry.id)}
                         className="text-slate-400 transition-colors hover:text-rose-300"
-                        aria-label={`Quitar ${entry.name}`}
+                        aria-label={`Remove ${entry.name}`}
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -959,13 +959,13 @@ export default function DashboardView({
             {/* Best and worst performers */}
             <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-5 py-5">
               <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-400">
-                <span>Mejores y peores</span>
+                <span>Top movers</span>
                 <button
                   type="button"
                   onClick={handleResetWatchlist}
                   className="text-xs font-semibold text-cyan-300 underline-offset-4 hover:underline"
                 >
-                  Resetear watchlist
+                  Reset watchlist
                 </button>
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:gap-4">
@@ -987,7 +987,7 @@ export default function DashboardView({
                     </div>
                   </div>
                 ) : (
-                  <EmptyPerformer placeholder="Sin datos" positive />
+                  <EmptyPerformer placeholder="No data" positive />
                 )}
 
                 {worstPerformer ? (
@@ -1011,7 +1011,7 @@ export default function DashboardView({
                     </div>
                   </div>
                 ) : (
-                  <EmptyPerformer placeholder="Sin datos" />
+                  <EmptyPerformer placeholder="No data" />
                 )}
               </div>
             </div>
@@ -1030,7 +1030,7 @@ export default function DashboardView({
                     : "bg-white/5 text-slate-300 hover:bg-white/10"
                 }`}
               >
-                Todas
+                All
               </button>
               <button
                 type="button"
@@ -1041,7 +1041,7 @@ export default function DashboardView({
                     : "bg-white/5 text-slate-300 hover:bg-white/10"
                 }`}
               >
-                Top ganadoras
+                Top winners
               </button>
               <button
                 type="button"
@@ -1052,12 +1052,12 @@ export default function DashboardView({
                     : "bg-white/5 text-slate-300 hover:bg-white/10"
                 }`}
               >
-                Top perdedoras
+                Top losers
               </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-300">
-              <span className="text-slate-400">Ordenar por:</span>
+              <span className="text-slate-400">Sort by:</span>
               <button
                 type="button"
                 onClick={() => handleToggleSort("watchlist")}
@@ -1078,7 +1078,7 @@ export default function DashboardView({
                     : "bg-white/5 text-slate-300 hover:bg-white/10"
                 }`}
               >
-                Nombre{" "}
+                Name{" "}
                 {sortKey === "name"
                   ? sortDirection === "asc"
                     ? "↑"
@@ -1094,7 +1094,7 @@ export default function DashboardView({
                     : "bg-white/5 text-slate-300 hover:bg-white/10"
                 }`}
               >
-                Precio{" "}
+                Price{" "}
                 {sortKey === "price"
                   ? sortDirection === "asc"
                     ? "↑"
@@ -1127,7 +1127,7 @@ export default function DashboardView({
                 <>
                   <Loader2 className="h-4 w-4 animate-spin text-cyan-200" />
                   <span>
-                    Sincronizando nuevas monedas añadidas a tu watchlist...
+                    Syncing newly added watchlist assets...
                   </span>
                 </>
               )}

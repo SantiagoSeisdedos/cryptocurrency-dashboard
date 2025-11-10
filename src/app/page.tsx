@@ -55,16 +55,16 @@ export default async function HomePage() {
     return (
       <main className="min-h-screen bg-slate-950">
         <div className="mx-auto flex max-w-5xl flex-1 flex-col items-center gap-6 px-4 py-16 text-center">
-          <ErrorMessage message="No se encontraron cotizaciones disponibles en este momento." />
+          <ErrorMessage message="No quotes are available right now." />
           <p className="max-w-md text-sm text-slate-300">
-            Puede tratarse de un problema temporal con la API de CoinGecko. Intenta nuevamente
-            en unos segundos.
+            This is likely a temporary hiccup with the CoinGecko API. Please try again in a few
+            seconds.
           </p>
           <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition-colors hover:text-cyan-100"
           >
-            Reintentar
+            Retry
           </Link>
         </div>
       </main>

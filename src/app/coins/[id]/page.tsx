@@ -52,12 +52,12 @@ export default async function CoinDetailPage({ params }: PageProps) {
             className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-sm text-slate-300 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver
+            Back
           </Link>
           <ErrorMessage
             message={
               error?.message ??
-              "Error al obtener el detalle de la criptomoneda."
+              "We couldn't load this coin detail."
             }
           />
         </div>
@@ -97,7 +97,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
             className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver al tablero
+            Back to dashboard
           </Link>
 
           <div className="flex flex-col gap-6 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-10">
@@ -128,7 +128,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
                 {detail.lastUpdated && (
                   <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
                     <Clock className="h-3.5 w-3.5" />
-                    Actualizado {new Date(detail.lastUpdated).toLocaleString()}
+                    Updated {new Date(detail.lastUpdated).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -136,7 +136,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
 
             <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-5 py-4 text-right">
               <p className="text-xs uppercase tracking-wide text-slate-400">
-                Precio actual
+                Current price
               </p>
               <p className="text-3xl font-semibold text-white">
                 {currencyFormatter.format(detail.price)}
@@ -163,7 +163,7 @@ export default async function CoinDetailPage({ params }: PageProps) {
           {history.length > 1 && (
             <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 backdrop-blur-xl">
               <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
-                Evolución últimos 30 días
+                Performance last 30 days
               </h2>
               <div className="mt-6 h-48 w-full">
                 <Sparkline
@@ -180,31 +180,31 @@ export default async function CoinDetailPage({ params }: PageProps) {
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <article className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 backdrop-blur-xl">
             <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
-              Máximo 24h
+              24h high
             </h2>
             <p className="mt-3 text-3xl font-semibold text-white">
               {currencyFormatter.format(detail.high24h)}
             </p>
             <p className="mt-2 text-sm text-slate-400">
-              Valor más alto registrado en las últimas 24 horas.
+              Highest price recorded during the last 24 hours.
             </p>
           </article>
 
           <article className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 backdrop-blur-xl">
             <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
-              Mínimo 24h
+              24h low
             </h2>
             <p className="mt-3 text-3xl font-semibold text-white">
               {currencyFormatter.format(detail.low24h)}
             </p>
             <p className="mt-2 text-sm text-slate-400">
-              Valor más bajo registrado en las últimas 24 horas.
+              Lowest price recorded during the last 24 hours.
             </p>
           </article>
         </section>
 
         <div className="mt-4 text-sm text-slate-400 sm:text-center">
-          Fuente de datos: CoinGecko API — actualizaciones automáticas cada 60 segundos.
+          Data source: CoinGecko API — automatic refresh every 60 seconds.
         </div>
       </div>
     </main>

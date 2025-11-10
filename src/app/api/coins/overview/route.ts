@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: true,
-        message: "No fue posible obtener las cotizaciones solicitadas.",
+        message: "Unable to retrieve the requested quotes.",
       },
       { status: 500 }
     );

@@ -7,7 +7,7 @@ export default function LoadingSpinner() {
         <span className="relative block h-full w-full rounded-full border-4 border-cyan-400/40 border-t-cyan-300 animate-spin" />
       </div>
       <p className="text-sm font-medium tracking-wide text-slate-300 animate-pulse">
-        Cargando datos del mercado...
+        Loading market data...
       </p>
     </div>
   );

@@ -14,7 +14,7 @@ export default function Sparkline({
   if (!data || data.length < 2) {
     return (
       <div className="flex h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs text-slate-400">
-        Sin datos
+        No data
       </div>
     );
   }

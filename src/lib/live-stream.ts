@@ -28,7 +28,7 @@ export async function loadLivePrices(
     }
     return {
       error: true,
-      message: "No fue posible obtener los precios actuales para el streaming.",
+      message: "Unable to fetch live prices for the stream.",
     };
   }
 }
@@ -50,7 +50,7 @@ export function createStreamingLoop(
     }
   };
 
-  // Primer envío inmediato
+  // Send immediately once
   tick();
 
   const timer = setInterval(tick, intervalMs);

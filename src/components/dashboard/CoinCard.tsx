@@ -52,7 +52,7 @@ export default function CoinCard({
       className="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl backdrop-blur-xl"
     >
       <div
-        className={`pointer-events-none absolute inset-x-0 top-0 h-24 opacity-40 blur-3xl transition-all duration-500 group-hover:opacity-60 group-hover:blur-2xl bg-gradient-to-r ${gradient}`}
+        className={`pointer-events-none absolute inset-x-0 top-0 h-24 opacity-40 blur-3xl transition-all duration-500 group-hover:opacity-60 group-hover:blur-2xl bg-linear-to-r ${gradient}`}
       />
       <div className="relative flex items-start justify-between">
         <div className="flex items-center gap-4">
@@ -85,7 +85,7 @@ export default function CoinCard({
               type="button"
               onClick={() => onRemove(id)}
               className="rounded-full border border-white/10 bg-white/5 p-2 text-slate-300 transition-colors hover:text-rose-300"
-              aria-label={`Quitar ${name}`}
+              aria-label={`Remove ${name}`}
             >
               <X className="h-4 w-4" />
             </button>
@@ -97,7 +97,7 @@ export default function CoinCard({
       <div className="relative mt-6 flex flex-col gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-400">
-            Precio actual
+            Current price
           </p>
           <p className="text-3xl font-semibold text-white">
             {price !== undefined ? currencyFormatter.format(price) : "—"}
@@ -130,12 +130,12 @@ export default function CoinCard({
               href={`/coins/${id}`}
               className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition-colors duration-300 hover:text-cyan-200"
             >
-              Ver detalles
+              View details
               <ArrowUpRight className="h-4 w-4" />
             </Link>
           ) : (
             <span className="text-xs font-medium text-slate-400">
-              Detalle no disponible
+              Detail unavailable
             </span>
           )}
         </div>

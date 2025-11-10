@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Crypto Dashboard",
   description:
-    "Consulta precios y evolución en tiempo real de las principales criptomonedas.",
+    "Track live cryptocurrency prices, trends, and detailed metrics powered by the CoinGecko API.",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

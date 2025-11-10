@@ -12,7 +12,7 @@ export class CoinGeckoRateLimitError extends Error {
   status: number;
 
   constructor(
-    message = "Se alcanzó el límite de la API pública de CoinGecko. Intenta nuevamente en un momento o configura tu propia API key (ver README).",
+    message = "The public CoinGecko API limit was reached. Try again shortly or configure your own API key (see README).",
     status = 429
   ) {
     super(message);
@@ -107,14 +107,15 @@ export async function fetchCoinMarketOverview(
       `${COINGECKO_API}/simple/price?${params.toString()}`,
       fetchConfig
     );
-  } catch {
-    throw new Error("No fue posible obtener los precios actuales.");
+  } catch (error) {
+    console.error(error);
+    throw new Error("Unable to fetch current prices.");
   }
 
   assertRateLimit(response);
 
   if (!response.ok) {
-    throw new Error("No fue posible obtener los precios actuales.");
+    throw new Error("Unable to fetch current prices.");
   }
 
   const result: SimplePriceResponse = await response.json();
@@ -156,7 +157,7 @@ export async function fetchCoinDetail(
       return undefined;
     }
 
-    throw new Error("No fue posible obtener el detalle de la criptomoneda.");
+    throw new Error("Unable to retrieve coin details.");
   }
 
   const data = await response.json();
